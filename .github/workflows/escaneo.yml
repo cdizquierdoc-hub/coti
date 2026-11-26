@@ -1,0 +1,49 @@
+name: Escaneo de precios
+
+on:
+  schedule:
+    - cron: "17 * * * *"   # cada hora
+  workflow_dispatch:
+    inputs:
+      tiendas:
+        description: "Tiendas a escanear separadas por espacio (vacío = todas)"
+        default: ""
+
+concurrency:
+  group: escaneo
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  escanear:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar rama de datos
+        run: |
+          git config user.name "coti-bot"
+          git config user.email "coti-bot@users.noreply.github.com"
+          git fetch -q origin data
+          git worktree add -q _data origin/data
+          git -C _data checkout -q -B data origin/data
+
+      - name: Escanear catálogos
+        env:
+          DATA_DIR: _data
+        run: python3 escaner/escanear.py ${{ github.event.inputs.tiendas }}
+
+      - name: Guardar
+        run: |
+          cd _data && git add -A precios
+          git diff --cached --quiet && exit 0
+          git commit -q -m "precios $(date -u +%FT%TZ)"
+          for i in 1 2 3 4 5; do
+            git push -q origin data && exit 0
+            git pull -q --rebase origin data || { git rebase --abort; git pull -q --no-rebase -X ours origin data; }
+            sleep 3
+          done
+          exit 1
