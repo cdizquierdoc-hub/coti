@@ -101,7 +101,7 @@ def modelo_de(nombre, ref=None):
 
     def valido(t):
         c = limpio(t)
-        return (len(c) >= 5 or (len(c) == 4 and "-" in t)) and re.search(r"[A-Z]", c) and re.search(r"\d", c) and not UNIDADES.match(c) and not re.match(r"^(19|20)\d\d[A-Z]?$", c) and not re.match(r"^\d+(EN|IN|X)\d+$", c)
+        return (len(c) >= 5 or (len(c) == 4 and "-" in t)) and re.search(r"[A-Z]", c) and re.search(r"\d", c) and not UNIDADES.match(c) and not re.match(r"^(19|20)\d\d[A-Z]?$", c) and not re.match(r"^\d+(EN|IN|X|W)\d+$", c) and not re.match(r"^P\d{3,6}$", c)
 
     if re.match(r"\s*combo\b", nombre or "", re.I):  # un combo no es el mismo producto que su componente
         return None
@@ -532,6 +532,87 @@ def previo_resumen():
         return {}
 
 
+# ---------------------------------------------------------------- historial diario de métricas
+def mediana(v):
+    v = sorted(v)
+    if not v:
+        return None
+    m = len(v) // 2
+    return v[m] if len(v) % 2 else (v[m - 1] + v[m]) / 2
+
+
+def historial():
+    """Guarda una foto por día (la última del día gana) de las métricas clave por tienda."""
+    grupos = {t["id"]: t["grupo"] for t in TIENDAS}
+    todos = []
+    for t in TIENDAS:
+        try:
+            with open(os.path.join(OUT, f"{t['id']}.json"), encoding="utf-8") as f:
+                todos += json.load(f)
+        except Exception:
+            pass
+    hoy = AHORA[:10]
+    por_tienda = {}
+    for t in TIENDAS:
+        ps = [p for p in todos if p["t"] == t["id"]]
+        if not ps:
+            continue
+        promo = [p for p in ps if p.get("l") and p["l"] > p["p"]]
+        cred = [p for p in ps if p.get("cr")]
+        por_tienda[t["id"]] = {
+            "total": len(ps),
+            "promo": round(len(promo) / len(ps), 4),
+            "desc": round(mediana([1 - p["p"] / p["l"] for p in promo]) or 0, 4),
+            "cred": round(len(cred) / len(ps), 4),
+            "recargo": round(mediana([p["cr"] / p["p"] - 1 for p in cred]) or 0, 4),
+            "suben": sum(1 for p in ps if p.get("cf", "")[:10] == hoy and p.get("pa") is not None and p["p"] > p["pa"]),
+            "bajan": sum(1 for p in ps if p.get("cf", "")[:10] == hoy and p.get("pa") is not None and p["p"] < p["pa"]),
+        }
+    # índice de precio: mejor precio CRESA vs cada competidor en el mismo modelo
+    claves = sorted({p["mo"] for p in todos if p.get("mo") and not re.match(r"\s*combo\b", p["n"], re.I)})
+    canon, base = {}, None
+    for k in claves:
+        if base and len(base) >= 6 and k.startswith(base) and len(k) - len(base) <= 4:
+            canon[k] = base
+        else:
+            base = k
+            canon[k] = k
+    modelos = {}
+    for p in todos:
+        g = canon.get(p.get("mo"))
+        if g:
+            modelos.setdefault(g, []).append(p)
+    difs, total = {}, []
+    for items in modelos.values():
+        cres = [p["p"] for p in items if grupos.get(p["t"]) == "cresa"]
+        if not cres:
+            continue
+        c = min(cres)
+        mejor = {}
+        for p in items:
+            if grupos.get(p["t"]) == "comp":
+                mejor[p["t"]] = min(mejor.get(p["t"], 1e12), p["p"])
+        for tid, v in mejor.items():
+            d = (c - v) / v
+            if abs(d) <= 0.6:
+                difs.setdefault(tid, []).append(d)
+                total.append(d)
+    indice = {tid: {"mediana": round(mediana(v), 4), "n": len(v)} for tid, v in difs.items()}
+    dia = {"fecha": hoy, "tiendas": por_tienda, "indice": indice,
+           "indice_total": {"mediana": round(mediana(total), 4) if total else None, "n": len(total)}}
+    ruta = os.path.join(OUT, "historial.json")
+    try:
+        with open(ruta, encoding="utf-8") as f:
+            h = json.load(f)
+    except Exception:
+        h = {"dias": []}
+    h["dias"] = [d for d in h["dias"] if d["fecha"] != hoy] + [dia]
+    h["dias"] = sorted(h["dias"], key=lambda d: d["fecha"])[-400:]
+    with open(ruta, "w", encoding="utf-8") as f:
+        json.dump(h, f, ensure_ascii=False, separators=(",", ":"))
+    log(f"historial: {len(h['dias'])} días · índice total {dia['indice_total']}")
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     solo = set(sys.argv[1:])
@@ -546,6 +627,7 @@ def main():
     with open(os.path.join(OUT, "resumen.json"), "w", encoding="utf-8") as f:
         json.dump(resumen, f, ensure_ascii=False, indent=1)
     log(json.dumps(resumen, ensure_ascii=False))
+    historial()
 
 
 if __name__ == "__main__":

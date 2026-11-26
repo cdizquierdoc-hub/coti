@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>COTI · Métricas e-commerce</title>
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1">
+<link rel="shortcut icon" href="favicon.ico?v=1">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=1">
+<meta name="theme-color" content="#1546B8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: filtros arriba; fila de KPIs; secciones Precio · Surtido · Promociones y crédito · Movimientos · Tendencia · Acciones, cada una con paneles de barras horizontales. */
+:root{
+  --bg:#EEF1F5; --surface:#FFFFFF; --sunk:#E4E9F0; --ink:#132033; --muted:#5A6779; --line:#D3DAE4;
+  --accent:#1546B8; --accent-ink:#FFFFFF; --cresa:#DCE6FA; --cresa-line:#B5C8F0; --img:#FFFFFF;
+  --good:#16794A; --bad:#B8402A;
+  /* datos (paleta validada: 2 series + divergente azul/rojo con medio gris) */
+  --s-cresa:#257de0; --s-comp:#f47230; --d-neg:#257de0; --d-pos:#ec4647; --d-mid:#efefef;
+  --grid:#e7e7e7; --axis:#c2c2c2;
+  --q1:#cce3fd; --q2:#9dc8f7; --q3:#6aabf1; --q4:#338ced; --q5:#2370cd; --q6:#1757ac; --q7:#0e3d7e;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E141D; --surface:#161E2A; --sunk:#1D2735; --ink:#E6ECF4; --muted:#93A0B3; --line:#2A3647;
+  --accent:#7FA6FF; --accent-ink:#0B1222; --cresa:#17264A; --cresa-line:#2C4277; --good:#4CC489; --bad:#FF8A70;
+  --s-cresa:#338ced; --s-comp:#e76624; --d-neg:#338ced; --d-pos:#eb6263; --d-mid:#383838; --grid:#303030; --axis:#474747;
+  --q1:#0e3d7e; --q2:#0f4a96; --q3:#1757ac; --q4:#1b64be; --q5:#257de0; --q6:#519ced; --q7:#9dc8f7; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E141D; --surface:#161E2A; --sunk:#1D2735; --ink:#E6ECF4; --muted:#93A0B3; --line:#2A3647;
+  --accent:#7FA6FF; --accent-ink:#0B1222; --cresa:#17264A; --cresa-line:#2C4277; --good:#4CC489; --bad:#FF8A70;
+  --s-cresa:#338ced; --s-comp:#e76624; --d-neg:#338ced; --d-pos:#eb6263; --d-mid:#383838; --grid:#303030; --axis:#474747;
+  --q1:#0e3d7e; --q2:#0f4a96; --q3:#1757ac; --q4:#1b64be; --q5:#257de0; --q6:#519ced; --q7:#9dc8f7; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.wrap{max-width:1280px;margin:0 auto;padding:20px max(16px,env(safe-area-inset-right,0px)) 56px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance}
+h1{font-size:clamp(30px,5vw,42px);font-weight:700;line-height:1}
+h2{font-size:26px;font-weight:600}
+h3{font-size:19px;font-weight:600}
+a{color:var(--accent)}
+button,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.eyebrow{font-family:var(--f-mono);font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px}
+header p{margin:6px 0 0;color:var(--muted);max-width:70ch}
+.fullname{font-family:var(--f-display);font-size:20px;font-weight:500;color:var(--accent);margin-top:2px}
+.hside{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.navlink{font-weight:600;text-decoration:none;border:1px solid var(--accent);border-radius:999px;padding:6px 14px}
+.navlink:hover{background:var(--accent);color:var(--accent-ink)}
+.status{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
+.status b{color:var(--ink);font-weight:500}
+
+.filters{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0}
+.filters-in{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.filters label{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted)}
+select{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);font-size:14px;color:var(--ink)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;min-width:0}
+.kpi .big{font-family:var(--f-display);font-size:38px;font-weight:700;line-height:1.05}
+.kpi .sub{font-size:13px;color:var(--muted)}
+.kpi.lead{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.kpi.lead .eyebrow,.kpi.lead .sub{color:inherit;opacity:.75}
+.up{color:var(--bad)} .down{color:var(--good)}
+
+section.sec{display:flex;flex-direction:column;gap:12px}
+.sec-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:6px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px}
+@media (max-width:520px){.grid2{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.panel p.note{margin:0;font-size:13px;color:var(--muted)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+
+/* barras horizontales */
+.bars{display:flex;flex-direction:column;gap:3px}
+.bar{display:grid;grid-template-columns:minmax(90px,150px) 1fr 74px;gap:10px;align-items:center;padding:3px 4px;border-radius:6px;cursor:default}
+.bar:hover{background:var(--sunk)}
+.bar .lab{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar .lab small{color:var(--muted);font-family:var(--f-mono);font-size:10px;margin-left:4px}
+.bar .trk{position:relative;height:16px}
+.bar .fill{position:absolute;top:2px;height:12px;border-radius:0 4px 4px 0}
+.bar .fill.neg{border-radius:4px 0 0 4px}
+.bar .val{font-family:var(--f-mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.bar .zero{position:absolute;top:-2px;bottom:-2px;width:1px;background:var(--axis)}
+.bar.cresa .lab{font-weight:600}
+.axis-note{display:flex;justify-content:space-between;font-family:var(--f-mono);font-size:11px;color:var(--muted);padding:0 78px 0 164px}
+@media (max-width:520px){.bar{grid-template-columns:90px 1fr 64px}.axis-note{padding:0 68px 0 104px}}
+.stack{display:flex;height:12px;border-radius:4px;overflow:hidden;gap:2px;margin-top:2px}
+.stack span{display:block;height:100%}
+
+/* mapa de calor */
+.heatwrap{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px;width:100%}
+th,td{padding:6px 8px;text-align:left;white-space:nowrap}
+th{font-family:var(--f-mono);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+table.heat td.c{text-align:center;font-family:var(--f-mono);font-size:12px;font-variant-numeric:tabular-nums;border:2px solid var(--surface);min-width:56px}
+table.heat th.rot{writing-mode:vertical-rl;transform:rotate(180deg);height:160px;vertical-align:bottom;text-align:left}
+table.heat th.cr{color:var(--accent)}
+table.list td{border-bottom:1px solid var(--line);vertical-align:middle}
+table.list tr:last-child td{border-bottom:0}
+table.list td.m{font-family:var(--f-mono);text-align:right;font-variant-numeric:tabular-nums}
+table.list td.n{white-space:normal;min-width:220px}
+table.list img{width:40px;height:40px;object-fit:contain;background:var(--img);border-radius:6px;vertical-align:middle}
+.tablewrap{overflow-x:auto}
+.pill{font-family:var(--f-mono);font-size:11px;padding:2px 8px;border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+
+/* tendencia */
+svg text{fill:var(--muted);font-family:var(--f-mono);font-size:11px}
+.trend-empty{padding:18px;border:1px dashed var(--line);border-radius:10px;color:var(--muted);font-size:14px}
+
+#tip{position:fixed;z-index:30;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;line-height:1.4;padding:8px 10px;border-radius:8px;max-width:280px;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+#tip b{font-weight:600}
+.foot{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;max-width:100ch}
+#app{display:flex;flex-direction:column;gap:28px}
+.bar.wide{grid-template-columns:minmax(90px,150px) 1fr 120px}
+.loading{padding:40px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Mercadeo · Cresa Retail</div>
+      <h1>COTI · Métricas</h1>
+      <div class="fullname">E-commerce: CRESA frente a la competencia</div>
+      <p>Precio, surtido, promociones, crédito y movimientos de precio calculados con los catálogos en línea que COTI escanea cada hora.</p>
+    </div>
+    <div class="hside"><a class="navlink" href="./">← Comparador</a><div class="status" id="status">Cargando catálogos…</div></div>
+  </header>
+
+  <div class="filters"><div class="filters-in">
+    <label>Categoría <select id="fTipo"><option value="">Todas</option></select></label>
+    <label>Precio CRESA de referencia <select id="fRef">
+      <option value="cresa">El mejor de Crecos, Orve y Japón</option>
+      <option value="crecos">Crecos</option><option value="orve">Orve Hogar</option><option value="japon">Almacenes Japón</option>
+    </select></label>
+    <span class="pill" id="fInfo"></span>
+  </div></div>
+
+  <div id="app" class="loading">Cargando y calculando métricas…</div>
+
+  <p class="foot">Cómo se calcula: el índice de precio compara, en los modelos que están en CRESA y en cada competidor (mismo código de fabricante), el precio de contado de CRESA contra el del competidor; se muestra la mediana. Diferencias mayores al 60% se descartan porque suelen ser modelos mal emparejados. “Promoción” es todo producto con precio tachado publicado; el descuento es el que anuncia la tienda frente a su propio precio normal. “Crédito” es el crédito propio de cada tienda (no tarjetas bancarias). “Más vendidos” es el orden de ventas que publica cada tienda. La categoría se deduce del nombre del producto. Sin datos de visitas ni conversión: COTI solo ve lo que las tiendas publican.</p>
+</div>
+<div id="tip" hidden></div>
+
+<script src="comun.js"></script>
+<script>
+(() => {
+const {esc, money, money0, pct, median} = COTI;
+const $ = id => document.getElementById(id);
+let D = null, H = null;
+
+/* ---------- tooltip compartido ---------- */
+const tip = $("tip");
+document.addEventListener("mouseover", e => { const t = e.target.closest("[data-tip]"); if (!t){ tip.hidden = true; return; } tip.innerHTML = t.dataset.tip; tip.hidden = false; });
+document.addEventListener("mousemove", e => { if (tip.hidden) return; const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY + 14; if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (y + h > innerHeight - 8) y = e.clientY - h - 14; tip.style.left = x + "px"; tip.style.top = y + "px"; });
+document.addEventListener("scroll", () => tip.hidden = true, {passive: true});
+
+/* ---------- piezas de gráfico ---------- */
+const nombre = id => D.storeById[id]?.nombre || id;
+const esCresa = id => D.storeById[id]?.grupo === "cresa";
+
+// barras simples (0 → máx). rows: {id,label,v,txt,tip,cresa}
+function barras(rows, {max, fmt = v => v} = {}){
+  if (!rows.length) return `<p class="note">Sin datos para este filtro.</p>`;
+  const m = max ?? Math.max(...rows.map(r => r.v), 1e-9);
+  return `<div class="bars">${rows.map(r => `<div class="bar ${r.cresa ? "cresa" : ""}" data-tip="${esc(r.tip || "")}">
+    <span class="lab">${esc(r.label)}${r.small ? `<small>${esc(r.small)}</small>` : ""}</span>
+    <span class="trk"><span class="fill" style="left:0;width:${Math.max(0.5, r.v / m * 100)}%;background:${r.cresa ? "var(--s-cresa)" : "var(--s-comp)"}"></span></span>
+    <span class="val">${r.txt ?? fmt(r.v)}</span></div>`).join("")}</div>`;
+}
+// barras divergentes alrededor de 0. negativo = CRESA más barato (azul), positivo = CRESA más caro (rojo)
+function divergentes(rows, {lim} = {}){
+  if (!rows.length) return `<p class="note">No hay modelos en común para este filtro.</p>`;
+  const L = lim ?? Math.max(0.05, ...rows.map(r => Math.abs(r.v)));
+  return `<div class="bars">${rows.map(r => { const w = Math.min(1, Math.abs(r.v) / L) * 50;
+    return `<div class="bar" data-tip="${esc(r.tip || "")}">
+      <span class="lab">${esc(r.label)}${r.small ? `<small>${esc(r.small)}</small>` : ""}</span>
+      <span class="trk"><span class="zero" style="left:50%"></span>
+        <span class="fill ${r.v < 0 ? "neg" : ""}" style="${r.v < 0 ? `right:50%` : `left:50%`};width:${Math.max(0.4, w)}%;background:${r.v < 0 ? "var(--d-neg)" : "var(--d-pos)"}"></span></span>
+      <span class="val ${r.v > 0.005 ? "up" : r.v < -0.005 ? "down" : ""}">${pct(r.v)}</span></div>`; }).join("")}</div>
+    <div class="axis-note"><span>← CRESA más barato</span><span>CRESA más caro →</span></div>`;
+}
+const leyendaGrupos = `<div class="legend"><span><i style="background:var(--s-cresa)"></i>CRESA</span><span><i style="background:var(--s-comp)"></i>Competencia</span></div>`;
+
+/* ---------- cálculos ---------- */
+function filtrados(tipo){ return tipo ? D.products.filter(p => p._tipo === tipo) : D.products; }
+function statsTienda(ps){
+  const promo = ps.filter(p => p.l && p.l > p.p), cred = ps.filter(p => p.cr);
+  const hace7 = Date.now() - 7 * 864e5;
+  const mov = ps.filter(p => p.pa != null && p.cf && Date.parse(p.cf) >= hace7);
+  return {
+    n: ps.length,
+    promo: ps.length ? promo.length / ps.length : 0,
+    desc: median(promo.map(p => 1 - p.p / p.l)),
+    cred: ps.length ? cred.length / ps.length : 0,
+    recargo: median(cred.map(p => p.cr / p.p - 1)),
+    cuotas: median(cred.filter(p => p.cn > 1).map(p => p.cn)),
+    suben: mov.filter(p => p.p > p.pa).length,
+    bajan: mov.filter(p => p.p < p.pa).length,
+    ticket: median(ps.map(p => p.p)),
+  };
+}
+
+function render(){
+  const tipo = $("fTipo").value, ref = $("fRef").value;
+  const prs = COTI.pares(D, {ref, tipo});
+  const ps = filtrados(tipo);
+  const comps = D.stores.filter(s => s.grupo !== "cresa");
+  const refNombre = ref === "cresa" ? "CRESA (mejor de las 3)" : nombre(ref);
+  $("fInfo").textContent = `${ps.length.toLocaleString("es-EC")} productos · ${prs.length.toLocaleString("es-EC")} comparaciones de precio`;
+
+  /* ----- KPIs ----- */
+  const idx = median(prs.map(x => x.d));
+  const barato = prs.filter(x => x.d < -0.005).length, caro = prs.filter(x => x.d > 0.005).length, igual = prs.length - barato - caro;
+  const modelos = new Set(prs.map(x => x.g)).size;
+  const topComp = D.products.filter(p => p.r && !p._cresa && (!tipo || p._tipo === tipo));
+  const cubiertos = topComp.filter(p => p._g && D.byModel.get(p._g).some(x => x._cresa));
+  const conAlt = topComp.filter(p => !cubiertos.includes(p)).filter(p => COTI.alternativas(p, D.products, 1).length);
+  const kpis = `<div class="kpis">
+    <div class="kpi lead"><div class="eyebrow">Índice de precio ${esc(refNombre)}</div><div class="big num">${pct(idx)}</div><div class="sub">${idx == null ? "Sin modelos en común" : idx < 0 ? "CRESA está por debajo de la competencia (mediana)" : idx > 0 ? "CRESA está por encima de la competencia (mediana)" : "CRESA está igual que la competencia"}</div></div>
+    <div class="kpi"><div class="eyebrow">CRESA más barato</div><div class="big num">${prs.length ? Math.round(barato / prs.length * 100) + "%" : "—"}</div><div class="sub">de las comparaciones · más caro en ${prs.length ? Math.round(caro / prs.length * 100) : 0}% · igual en ${prs.length ? Math.round(igual / prs.length * 100) : 0}%</div></div>
+    <div class="kpi"><div class="eyebrow">Modelos en común</div><div class="big num">${modelos.toLocaleString("es-EC")}</div><div class="sub">${prs.length.toLocaleString("es-EC")} comparaciones contra ${new Set(prs.map(x => x.tienda)).size} competidores</div></div>
+    <div class="kpi"><div class="eyebrow">Más vendidos de la competencia que tenemos</div><div class="big num">${topComp.length ? Math.round(cubiertos.length / topComp.length * 100) + "%" : "—"}</div><div class="sub">${cubiertos.length} de ${topComp.length} · con alternativa CRESA: ${conAlt.length} más</div></div>
+  </div>`;
+
+  /* ----- Precio ----- */
+  const porComp = comps.map(s => { const v = prs.filter(x => x.tienda === s.id); return {s, v}; }).filter(x => x.v.length >= 5)
+    .map(({s, v}) => { const m = median(v.map(x => x.d)); const b = v.filter(x => x.d < -0.005).length, c = v.filter(x => x.d > 0.005).length;
+      return {label: s.nombre, small: `${v.length}`, v: m, n: v.length, b, c, i: v.length - b - c,
+        tip: `<b>${esc(refNombre)} vs ${esc(s.nombre)}</b><br>Mediana: ${pct(m)}<br>${v.length} modelos en común<br>CRESA más barato en ${b}, más caro en ${c}, igual en ${v.length - b - c}`}; })
+    .sort((a, b) => a.v - b.v);
+  const tipos = [...new Set(prs.map(x => x.tipo).filter(t => t && t !== "Accesorio"))];
+  const porTipo = tipos.map(t => { const v = prs.filter(x => x.tipo === t); return {t, v}; }).filter(x => x.v.length >= 3)
+    .map(({t, v}) => { const m = median(v.map(x => x.d)); return {label: t, small: `${v.length}`, v: m, n: v.length, tip: `<b>${esc(t)}</b><br>Mediana: ${pct(m)}<br>${v.length} comparaciones`}; })
+    .sort((a, b) => b.n - a.n).slice(0, 14).sort((a, b) => a.v - b.v);
+  const mezcla = porComp.slice().sort((a, b) => b.n - a.n).map(r => `<div class="bar" data-tip="${esc(r.tip)}">
+      <span class="lab">${esc(r.label)}<small>${r.n}</small></span>
+      <span class="stack">${[["b", "var(--d-neg)"], ["i", "var(--d-mid)"], ["c", "var(--d-pos)"]].map(([k, col]) => r[k] ? `<span style="flex:${r[k]};background:${col}"></span>` : "").join("")}</span>
+      <span class="val">${Math.round(r.b / r.n * 100)}%</span></div>`).join("");
+  const secPrecio = `<section class="sec"><div class="sec-h"><h2>Precio</h2><span class="eyebrow">Contado · mismo modelo</span></div>
+    <div class="grid2">
+      <div class="panel"><h3>Índice de precio por competidor</h3><p class="note">Cuánto más caro (+) o más barato (−) está ${esc(refNombre)} frente a cada tienda, en la mediana de los modelos que ambos venden. El número pequeño es la cantidad de modelos; se muestran tiendas con 5 o más.</p>${divergentes(porComp)}</div>
+      <div class="panel"><h3>Índice de precio por categoría</h3><p class="note">Las 14 categorías con más comparaciones, contra todos los competidores.</p>${divergentes(porTipo)}</div>
+    </div>
+    <div class="panel"><h3>¿En cuántos modelos gana CRESA?</h3><div class="legend"><span><i style="background:var(--d-neg)"></i>CRESA más barato</span><span><i style="background:var(--d-mid);outline:1px solid var(--line)"></i>Igual (±0,5%)</span><span><i style="background:var(--d-pos)"></i>CRESA más caro</span><span>· el % es la parte donde CRESA es más barato</span></div>${mezcla ? `<div class="bars">${mezcla}</div>` : `<p class="note">Sin datos.</p>`}</div>
+  </section>`;
+
+  /* ----- Surtido ----- */
+  const porTienda = D.stores.map(s => ({s, ps: ps.filter(p => p.t === s.id)})).filter(x => x.ps.length);
+  const st = Object.fromEntries(porTienda.map(x => [x.s.id, statsTienda(x.ps)]));
+  const rowsSku = porTienda.map(({s}) => ({label: s.nombre, v: st[s.id].n, cresa: s.grupo === "cresa", txt: st[s.id].n.toLocaleString("es-EC"),
+    tip: `<b>${esc(s.nombre)}</b><br>${st[s.id].n.toLocaleString("es-EC")} productos con stock y precio<br>Precio mediano: ${money(st[s.id].ticket)}`})).sort((a, b) => b.v - a.v);
+  const rowsTicket = porTienda.map(({s}) => ({label: s.nombre, v: st[s.id].ticket || 0, cresa: s.grupo === "cresa", txt: money0(st[s.id].ticket),
+    tip: `<b>${esc(s.nombre)}</b><br>Precio mediano: ${money(st[s.id].ticket)}`})).sort((a, b) => b.v - a.v);
+  // mapa de calor categorías × tiendas
+  const allTipos = {}; for (const p of D.products) if (p._tipo && p._tipo !== "Accesorio") allTipos[p._tipo] = (allTipos[p._tipo] || 0) + 1;
+  const tiposTop = Object.entries(allTipos).sort((a, b) => b[1] - a[1]).slice(0, 16).map(x => x[0]);
+  const cuenta = {}; for (const p of D.products) if (p._tipo) cuenta[p.t + "|" + p._tipo] = (cuenta[p.t + "|" + p._tipo] || 0) + 1;
+  const maxC = Math.max(1, ...Object.values(cuenta));
+  const paso = v => !v ? "" : `var(--q${Math.min(7, 1 + Math.floor(Math.log(v) / Math.log(maxC + 1) * 7))})`;
+  const tinta = v => v && Math.log(v) / Math.log(maxC + 1) * 7 >= 3 ? "color:#fff" : "";
+  const heat = `<div class="heatwrap"><table class="heat"><thead><tr><th></th>${D.stores.map(s => `<th class="rot ${s.grupo === "cresa" ? "cr" : ""}">${esc(s.nombre)}</th>`).join("")}</tr></thead>
+    <tbody>${tiposTop.map(t => `<tr><th style="text-transform:none;font-family:var(--f-body);font-size:13px;color:var(--ink)">${esc(t)}</th>${D.stores.map(s => { const v = cuenta[s.id + "|" + t] || 0;
+      return `<td class="c" style="background:${paso(v) || "transparent"};${tinta(v)}" data-tip="<b>${esc(s.nombre)}</b> · ${esc(t)}<br>${v} productos">${v || "·"}</td>`; }).join("")}</tr>`).join("")}</tbody></table></div>`;
+  const secSurtido = `<section class="sec"><div class="sec-h"><h2>Surtido</h2><span class="eyebrow">${tipo ? esc(tipo) : "Todas las categorías"}</span></div>
+    <div class="grid2">
+      <div class="panel"><h3>Productos en línea con stock</h3>${leyendaGrupos}${barras(rowsSku)}</div>
+      <div class="panel"><h3>Precio mediano del catálogo</h3><p class="note">Ubica a cada tienda en su rango de precios (ticket típico).</p>${leyendaGrupos}${barras(rowsTicket)}</div>
+    </div>
+    <div class="panel"><h3>Profundidad por categoría</h3><p class="note">Cantidad de productos de cada categoría en cada tienda. Más oscuro = más surtido. Las columnas azules son CRESA.</p>${heat}</div>
+  </section>`;
+
+  /* ----- Promociones y crédito ----- */
+  const rowsPromo = porTienda.map(({s}) => ({label: s.nombre, v: st[s.id].promo, cresa: s.grupo === "cresa", txt: Math.round(st[s.id].promo * 100) + "%",
+    tip: `<b>${esc(s.nombre)}</b><br>${Math.round(st[s.id].promo * 100)}% de sus productos tiene precio tachado`})).sort((a, b) => b.v - a.v);
+  const rowsDesc = porTienda.filter(({s}) => st[s.id].desc != null).map(({s}) => ({label: s.nombre, v: st[s.id].desc, cresa: s.grupo === "cresa", txt: Math.round(st[s.id].desc * 100) + "%",
+    tip: `<b>${esc(s.nombre)}</b><br>Descuento mediano anunciado: ${Math.round(st[s.id].desc * 100)}%`})).sort((a, b) => b.v - a.v);
+  const rowsCred = porTienda.filter(({s}) => st[s.id].cred > 0).map(({s}) => ({label: s.nombre, v: st[s.id].recargo || 0, cresa: s.grupo === "cresa", small: st[s.id].cuotas ? `hasta ${st[s.id].cuotas} cuotas` : "",
+    txt: pct(st[s.id].recargo), tip: `<b>${esc(s.nombre)}</b><br>Crédito propio en ${Math.round(st[s.id].cred * 100)}% del catálogo<br>Precio a crédito vs contado: ${pct(st[s.id].recargo)} (mediana)${st[s.id].cuotas ? `<br>Cuotas típicas: ${st[s.id].cuotas}` : ""}`})).sort((a, b) => b.v - a.v);
+  const sinCred = porTienda.filter(({s}) => !st[s.id].cred).map(({s}) => s.nombre);
+  const secPromo = `<section class="sec"><div class="sec-h"><h2>Promociones y crédito</h2><span class="eyebrow">Lo que cada tienda publica</span></div>
+    <div class="grid2">
+      <div class="panel"><h3>Catálogo en promoción</h3><p class="note">Parte de los productos con precio tachado.</p>${leyendaGrupos}${barras(rowsPromo, {max: 1})}</div>
+      <div class="panel"><h3>Descuento anunciado</h3><p class="note">Mediana del descuento entre los productos en promoción, frente al precio normal que publica la misma tienda.</p>${leyendaGrupos}${barras(rowsDesc, {max: 1})}</div>
+    </div>
+    <div class="panel"><h3>Precio a crédito frente al contado</h3><p class="note">Cuánto más cuesta un producto con el crédito propio de la tienda (mediana). ${sinCred.length ? `Sin crédito propio publicado: ${esc(sinCred.join(", "))}.` : ""}</p>${leyendaGrupos}${barras(rowsCred)}</div>
+  </section>`;
+
+  /* ----- Movimientos ----- */
+  const rowsMov = porTienda.map(({s}) => ({s, b: st[s.id].bajan, u: st[s.id].suben})).filter(x => x.b + x.u > 0).sort((a, b) => (b.b + b.u) - (a.b + a.u));
+  const maxMov = Math.max(1, ...rowsMov.map(x => Math.max(x.b, x.u)));
+  const mov = rowsMov.length ? `<div class="bars">${rowsMov.map(({s, b, u}) => `<div class="bar wide ${s.grupo === "cresa" ? "cresa" : ""}" data-tip="<b>${esc(s.nombre)}</b><br>Bajaron de precio: ${b}<br>Subieron de precio: ${u}<br>(últimos 7 días)">
+      <span class="lab">${esc(s.nombre)}</span>
+      <span class="trk"><span class="zero" style="left:50%"></span>
+        ${b ? `<span class="fill neg" style="right:50%;width:${b / maxMov * 50}%;background:var(--d-neg)"></span>` : ""}
+        ${u ? `<span class="fill" style="left:50%;width:${u / maxMov * 50}%;background:var(--d-pos)"></span>` : ""}</span>
+      <span class="val"><span class="down">▼${b}</span> <span class="up">▲${u}</span></span></div>`).join("")}</div>
+      <div class="axis-note" style="padding-right:124px"><span>← Bajaron</span><span>Subieron →</span></div>` : `<p class="note">Todavía no hay cambios de precio registrados en los últimos 7 días.</p>`;
+  const secMov = `<section class="sec"><div class="sec-h"><h2>Movimientos de precio</h2><span class="eyebrow">Últimos 7 días</span></div>
+    <div class="panel"><h3>Productos que bajaron o subieron de precio</h3><p class="note">Cuenta el último cambio de precio de cada producto si ocurrió en los últimos 7 días.</p>${mov}</div></section>`;
+
+  /* ----- Tendencia ----- */
+  const secTend = `<section class="sec"><div class="sec-h"><h2>Tendencia del índice de precio</h2><span class="eyebrow">CRESA vs toda la competencia · un punto por día</span></div>
+    <div class="panel">${tendencia()}</div></section>`;
+
+  /* ----- Acciones ----- */
+  const caros = prs.slice().sort((a, b) => b.d - a.d).filter(x => x.d > 0.02);
+  const vistos = new Set(), top = [];
+  for (const x of caros){ if (vistos.has(x.g)) continue; vistos.add(x.g); top.push(x); if (top.length >= 15) break; }
+  const filaPar = x => `<tr><td>${x.cresa.i ? `<img src="${esc(x.cresa.i)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</td>
+      <td class="n"><a href="${esc(x.cresa.u)}" target="_blank" rel="noopener">${esc(x.cresa.n)}</a><br><span class="pill">${esc(x.g)}</span></td>
+      <td>${esc(nombre(x.cresa.t))}</td><td class="m">${money(x.cresa.p)}</td>
+      <td><a href="${esc(x.comp.u)}" target="_blank" rel="noopener">${esc(nombre(x.tienda))}</a></td><td class="m">${money(x.comp.p)}</td>
+      <td class="m ${x.d > 0 ? "up" : "down"}">${pct(x.d)}</td></tr>`;
+  const faltan = topComp.filter(p => !cubiertos.includes(p)).sort((a, b) => a.r - b.r).slice(0, 15).map(p => ({p, a: COTI.alternativas(p, D.products, 1)[0]}));
+  const secAcc = `<section class="sec"><div class="sec-h"><h2>Para accionar</h2><span class="eyebrow">Precios a revisar y huecos de surtido</span></div>
+    <div class="panel"><h3>Donde CRESA está más caro</h3><p class="note">Los 15 modelos con mayor diferencia en contra (${esc(refNombre)} vs el competidor más barato que lo tiene).</p>
+      ${top.length ? `<div class="tablewrap"><table class="list"><thead><tr><th></th><th>Producto CRESA</th><th>Cadena</th><th style="text-align:right">CRESA</th><th>Competidor</th><th style="text-align:right">Precio</th><th style="text-align:right">Dif.</th></tr></thead><tbody>${top.map(filaPar).join("")}</tbody></table></div>` : `<p class="note">CRESA no está más caro en ningún modelo de este filtro.</p>`}</div>
+    <div class="panel"><h3>Más vendidos de la competencia que CRESA no tiene</h3><p class="note">Ordenados por su puesto en ventas, con la alternativa CRESA más parecida.</p>
+      ${faltan.length ? `<div class="tablewrap"><table class="list"><thead><tr><th></th><th>Producto</th><th>Tienda</th><th style="text-align:right">Precio</th><th>Alternativa CRESA</th><th style="text-align:right">Precio</th><th style="text-align:right">Dif.</th></tr></thead><tbody>${faltan.map(({p, a}) => `<tr>
+        <td>${p.i ? `<img src="${esc(p.i)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}</td>
+        <td class="n"><a href="${esc(p.u)}" target="_blank" rel="noopener">${esc(p.n)}</a></td>
+        <td>${esc(nombre(p.t))} <span class="pill">#${p.r}</span></td><td class="m">${money(p.p)}</td>
+        <td class="n">${a ? `<a href="${esc(a.p.u)}" target="_blank" rel="noopener">${esc(a.p.n)}</a><br><span class="pill">${esc([...new Set(a.cadenas.map(c => nombre(c.t)))].join(" · "))}</span>` : `<span class="pill">Sin alternativa parecida</span>`}</td>
+        <td class="m">${a ? money(a.p.p) : "—"}</td><td class="m ${a ? (a.p.p > p.p ? "up" : "down") : ""}">${a ? pct((a.p.p - p.p) / p.p) : "—"}</td></tr>`).join("")}</tbody></table></div>` : `<p class="note">CRESA tiene todos los más vendidos de la competencia en este filtro.</p>`}</div>
+  </section>`;
+
+  $("app").className = "";
+  $("app").innerHTML = kpis + secPrecio + secSurtido + secPromo + secMov + secTend + secAcc;
+}
+
+function tendencia(){
+  const dias = (H?.dias || []).filter(d => d.indice_total?.mediana != null);
+  if (dias.length < 2) return `<div class="trend-empty">La tendencia se arma sola: COTI guarda un punto por día. ${dias.length ? `Hoy el índice es <b>${pct(dias[0].indice_total.mediana)}</b> (${dias[0].indice_total.n} comparaciones); desde mañana verás la línea.` : "Desde el próximo escaneo verás el primer punto."}</div>`;
+  const W = 900, Hh = 220, P = {l: 52, r: 16, t: 14, b: 28};
+  const vs = dias.map(d => d.indice_total.mediana);
+  const lo = Math.min(0, ...vs) - 0.01, hi = Math.max(0, ...vs) + 0.01;
+  const x = i => P.l + (dias.length === 1 ? 0 : i / (dias.length - 1)) * (W - P.l - P.r);
+  const y = v => P.t + (hi - v) / (hi - lo) * (Hh - P.t - P.b);
+  const ticks = [lo, (lo + hi) / 2, hi].map(v => Math.round(v * 100) / 100);
+  const path = vs.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
+  const step = Math.ceil(dias.length / 6);
+  return `<svg viewBox="0 0 ${W} ${Hh}" width="100%" role="img" aria-label="Índice de precio por día">
+    ${ticks.map(t => `<line x1="${P.l}" x2="${W - P.r}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)"/><text x="${P.l - 8}" y="${y(t) + 4}" text-anchor="end">${pct(t, 0)}</text>`).join("")}
+    <line x1="${P.l}" x2="${W - P.r}" y1="${y(0)}" y2="${y(0)}" stroke="var(--axis)"/>
+    <path d="${path}" fill="none" stroke="var(--s-cresa)" stroke-width="2" stroke-linejoin="round"/>
+    ${dias.map((d, i) => `<g data-tip="<b>${d.fecha}</b><br>Índice: ${pct(d.indice_total.mediana)}<br>${d.indice_total.n} comparaciones"><rect x="${x(i) - 12}" y="${P.t}" width="24" height="${Hh - P.t - P.b}" fill="transparent"/>
+      <circle cx="${x(i)}" cy="${y(vs[i])}" r="4" fill="var(--s-cresa)" stroke="var(--surface)" stroke-width="2"/></g>
+      ${i % step === 0 || i === dias.length - 1 ? `<text x="${x(i)}" y="${Hh - 8}" text-anchor="middle">${d.fecha.slice(5)}</text>` : ""}`).join("")}
+  </svg><p class="note">Debajo de 0% CRESA está más barato que la competencia en la mediana de los modelos en común.</p>`;
+}
+
+async function iniciar(){
+  try { D = await COTI.cargar(); }
+  catch (e) { $("app").innerHTML = `<p class="loading">Todavía no hay un escaneo publicado.</p>`; return; }
+  try { H = await fetch(COTI.RAW + "historial.json?t=" + Date.now()).then(r => r.ok ? r.json() : null); } catch { H = null; }
+  const cuenta = {}; for (const p of D.products) if (p._tipo && p._tipo !== "Accesorio") cuenta[p._tipo] = (cuenta[p._tipo] || 0) + 1;
+  $("fTipo").innerHTML = `<option value="">Todas</option>` + Object.entries(cuenta).sort((a, b) => b[1] - a[1]).map(([t, n]) => `<option value="${esc(t)}">${esc(t)} (${n.toLocaleString("es-EC")})</option>`).join("");
+  try { const s = JSON.parse(localStorage.getItem("coti-metricas") || "{}"); if (s.tipo && cuenta[s.tipo]) $("fTipo").value = s.tipo; if (s.ref) $("fRef").value = s.ref; } catch {}
+  const when = new Date(D.meta.actualizado);
+  $("status").innerHTML = `<b>${D.products.length.toLocaleString("es-EC")}</b> productos en ${D.stores.filter(s => !s.error).length} tiendas<br>Último escaneo: <b>${when.toLocaleString("es-EC", {day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"})}</b>`;
+  const cambio = () => { try { localStorage.setItem("coti-metricas", JSON.stringify({tipo: $("fTipo").value, ref: $("fRef").value})); } catch {} render(); };
+  $("fTipo").addEventListener("change", cambio); $("fRef").addEventListener("change", cambio);
+  render();
+}
+iniciar();
+})();
+</script>
+</body>
+</html>

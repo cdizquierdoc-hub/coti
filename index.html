@@ -41,6 +41,9 @@ button,input,select{font:inherit;color:inherit}
 header{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:12px}
 header p{margin:6px 0 0;color:var(--muted);max-width:66ch}
 .fullname{font-family:var(--f-display);font-size:20px;font-weight:500;color:var(--accent);margin-top:2px}
+.hside{display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.navlink{font-weight:600;text-decoration:none;border:1px solid var(--accent);border-radius:999px;padding:6px 14px}
+.navlink:hover{background:var(--accent);color:var(--accent-ink)}
 .status{font-family:var(--f-mono);font-size:12px;color:var(--muted);text-align:right}
 .status b{color:var(--ink);font-weight:500}
 
@@ -121,6 +124,21 @@ select{padding:10px;border:1px solid var(--line);border-radius:10px;background:v
 .dots{display:flex;gap:5px;justify-content:center;flex-wrap:wrap}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--line);border:0;padding:0;cursor:pointer}
 .dot[aria-current="true"]{background:var(--accent);width:20px;border-radius:4px}
+.alts{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
+.alts-h{font-size:13px;color:var(--muted);margin-bottom:8px}
+.alts-h b{color:var(--ink)}
+.alts-l{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.alt{display:grid;grid-template-columns:56px 1fr auto;gap:8px;align-items:center;padding:8px;border:1px solid var(--cresa-line);background:var(--cresa);border-radius:10px;text-decoration:none;color:inherit;min-width:0}
+.alt:hover{border-color:var(--accent)}
+.alt img,.alt .thumb{width:56px;height:56px;object-fit:contain;background:var(--img);border-radius:8px}
+.alt-b{display:flex;flex-direction:column;min-width:0}
+.alt-tag{font-family:var(--f-mono);font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);font-weight:500}
+.alt-n{font-size:12px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.alt-c{font-size:11px;color:var(--muted)}
+.alt-p{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
+.alt-p .v{font-family:var(--f-display);font-size:19px;font-weight:700;line-height:1.1}
+.alt-p .c,.alt-p .d{font-family:var(--f-mono);font-size:10px}
+.alt-p .c{color:var(--muted)}
 .pp .c{font-family:var(--f-mono);font-size:11px;color:var(--muted);line-height:1.3}
 .pp .c b{color:var(--ink);font-weight:500}
 .item .cred{display:block;font-family:var(--f-mono);font-size:11px;font-weight:400;color:var(--muted)}
@@ -137,7 +155,7 @@ select{padding:10px;border:1px solid var(--line);border-radius:10px;background:v
       <div class="fullname">Comparador de Ofertas y Tarifas Inteligente</div>
       <p>Busca un producto y compara, con foto, cuánto cuesta en Crecos, Orve Hogar y Almacenes Japón frente a la competencia. Los catálogos se escanean solos cada hora.</p>
     </div>
-    <div class="status" id="status">Cargando catálogos…</div>
+    <div class="hside"><a class="navlink" href="metricas.html">Métricas e-commerce →</a><div class="status" id="status">Cargando catálogos…</div></div>
   </header>
 
   <div class="searchbar">
@@ -184,6 +202,7 @@ select{padding:10px;border:1px solid var(--line);border-radius:10px;background:v
   <p class="foot">COTI escanea cada hora los catálogos en línea de Crecos, Orve Hogar y Almacenes Japón, y de la competencia: Artefacta, Marcimex, Comandato, Pycca, Tía, Coral Hipermercados, Etafashion, El Juri, Mi Bodega, Estuardo Sánchez, Unity Stores, Bodeguita del Ahorro, BestPC y Computron. Solo entran productos con stock y precio publicados; en tiendas grandes se escanean solo las categorías de electrodomésticos y tecnología. “Mismo modelo” agrupa por el código del fabricante que aparece en el nombre. “Más vendidos” es el orden de ventas que publica cada tienda; Artefacta, Coral y Etafashion no lo publican. El precio a crédito es el del crédito propio de cada tienda (Crédito Directo, Directa, Club Pycca, crédito Eta), no el de tarjetas bancarias, y solo aparece cuando la tienda lo publica en su catálogo.</p>
 </div>
 
+<script src="comun.js"></script>
 <script>
 (() => {
 const RAW = "https://raw.githubusercontent.com/cdizquierdoc-hub/coti/data/precios/";
@@ -329,21 +348,7 @@ function credTxt(p, largo){
   return largo ? `Crédito: <b>${money(p.cr)}</b>` : `Crédito ${money(p.cr)}`;
 }
 
-// ---- modelos: une códigos que solo difieren en el sufijo (RI7568 / RI7568D) para todo el catálogo
 let byModel = new Map();
-function buildModels(){
-  const keys = [...new Set(products.filter(p => p.mo && !/^\s*combo\b/i.test(p.n)).map(p => p.mo))].sort();
-  const canon = new Map(); let base = null;
-  for (const k of keys){
-    if (base && base.length >= 6 && k.startsWith(base) && k.length - base.length <= 4) canon.set(k, base);
-    else { base = k; canon.set(k, k); }
-  }
-  byModel = new Map();
-  for (const p of products){
-    p._g = p.mo && canon.has(p.mo) ? canon.get(p.mo) : null;
-    if (p._g){ const l = byModel.get(p._g) || []; l.push(p); byModel.set(p._g, l); }
-  }
-}
 
 // ---- rueda de más vendidos
 const wheel = { store: "", slides: [], i: 0, timer: null, paused: false, user: false };
@@ -360,13 +365,28 @@ function wheelSlides(storeId){
     const grupos = new Set(peers.map(x => storeById[x.t]?.grupo));
     const cruza = grupos.has("cresa") && grupos.has("comp");   // está en CRESA y en la competencia
     const n = new Set(peers.map(x => x.t)).size;
-    if (!storeId && !cruza) continue;      // en "Todas" solo lo que se puede comparar CRESA vs competencia
-    seen.add(key); out.push({lead: p, peers, n, cruza});
-    if (out.length >= (storeId ? 15 : 24)) break;
+    const sinCresa = !grupos.has("cresa");
+    const alts = sinCresa ? COTI.alternativas(p, products) : [];
+    // en "Todas": lo que se compara CRESA vs competencia, y los más vendidos de la competencia que no tenemos (con alternativas)
+    if (!storeId && !cruza && !(sinCresa && alts.length)) continue;
+    seen.add(key); out.push({lead: p, peers, n, cruza, alts});
+    if (out.length >= (storeId ? 15 : 30)) break;
   }
   return out;
 }
-function slideHtml({lead, peers}, idx){
+function altHtml(lead, alts){
+  if (!alts || !alts.length) return "";
+  const ref = lead.p;
+  return `<div class="alts"><div class="alts-h"><b>No lo tenemos en CRESA.</b> Alternativas con precio o características parecidas:</div>
+    <div class="alts-l">${alts.map(a => { const p = a.p, d = p.p - ref;
+      const cad = [...new Set(a.cadenas.map(c => storeById[c.t]?.nombre))].join(" · ");
+      return `<a class="alt" href="${esc(p.u)}" target="_blank" rel="noopener">
+        ${p.i ? `<img src="${esc(p.i)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : `<span class="thumb"></span>`}
+        <span class="alt-b"><span class="alt-tag">${esc(a.etiqueta)}</span><span class="alt-n">${esc(p.n)}</span><span class="alt-c">${esc(cad)}</span></span>
+        <span class="alt-p"><span class="v num">${money(p.p)}</span>${p.cr ? `<span class="c">${credTxt(p)}</span>` : ""}
+        <span class="d ${d>0?"up":d<0?"down":""}">${Math.abs(d) < 0.5 ? "mismo precio" : money(Math.abs(d)) + (d>0 ? " más" : " menos")}</span></span></a>`; }).join("")}</div></div>`;
+}
+function slideHtml({lead, peers, alts}, idx){
   const per = new Map();
   for (const p of peers){ const c = per.get(p.t); if (!c || p.p < c.p) per.set(p.t, p); }
   const list = stores.filter(s => per.has(s.id)).map(s => per.get(s.id));
@@ -386,7 +406,8 @@ function slideHtml({lead, peers}, idx){
         <span class="s">${esc(storeById[p.t]?.nombre)}${p.r ? ` · #${p.r}` : ""}</span><span class="v num">${money(p.p)}</span>
         <span class="c">${p.cr ? credTxt(p, true) : "Contado"}</span></a>`).join("")}</div>
       ${gap}
-      ${list.length < 2 ? `<div class="solo">Este modelo no aparece en otras tiendas escaneadas.</div>` : ""}
+      ${list.length < 2 && !(alts && alts.length) ? `<div class="solo">Este modelo no aparece en otras tiendas escaneadas.</div>` : ""}
+      ${altHtml(lead, alts)}
       ${lead._g ? `<button class="linkish" type="button" data-buscar="${esc(lead._g)}">Buscar este modelo en todas las tiendas</button>` : ""}
     </div></article>`;
 }
@@ -397,7 +418,7 @@ function renderWheel(){
     .concat(withRank.map(s => `<button class="chip" type="button" data-wstore="${s.id}" aria-pressed="${wheel.store===s.id}">${esc(s.nombre)}</button>`)).join("");
   $("wheelNote").textContent = wheel.store
     ? `Lo más vendido en ${storeById[wheel.store]?.nombre} y su precio en las demás tiendas`
-    : `Lo más vendido de cada tienda que está en CRESA y en la competencia · ${wheel.slides.length} productos`;
+    : `Lo más vendido de cada tienda: comparado con CRESA o con alternativas CRESA · ${wheel.slides.length} productos`;
   $("track").innerHTML = wheel.slides.length ? wheel.slides.map(slideHtml).join("") : `<div class="empty" style="flex:1">Esta tienda no publica cuáles son sus más vendidos.</div>`;
   $("dots").innerHTML = wheel.slides.map((_, i) => `<button class="dot" type="button" data-dot="${i}" aria-label="Ir al ${i+1}"></button>`).join("");
   wheel.i = 0; $("track").scrollLeft = 0; markDot(); startWheel();
@@ -441,16 +462,12 @@ $("orden").addEventListener("change", render);
 EXAMPLES.forEach(x => { const b=document.createElement("button"); b.className="chip"; b.type="button"; b.textContent=x; b.onclick=()=>{ $("q").value=x; expanded.clear(); render(); }; $("chips").append(b); });
 
 async function load(){
-  try {
-    meta = await fetch(RAW + "resumen.json?t=" + Date.now()).then(r => { if(!r.ok) throw new Error(r.status); return r.json(); });
-  } catch (e) { $("status").innerHTML = '<span class="err">Todavía no hay un escaneo publicado.</span>'; return; }
-  stores = meta.tiendas; storeById = Object.fromEntries(stores.map(s => [s.id, s]));
-  const lists = await Promise.all(stores.map(s => s.error ? [] : fetch(RAW + s.id + ".json?t=" + encodeURIComponent(meta.actualizado)).then(r => r.ok ? r.json() : []).catch(() => [])));
-  products = lists.flat();
-  for (const p of products){ p._n = norm(p.n); p._k = " " + norm([p.n, p.m, p.mo, p.c].join(" ")); p._c = p._k.replace(/[\s\-.]/g,""); }
+  let d;
+  try { d = await COTI.cargar(); }
+  catch (e) { $("status").innerHTML = '<span class="err">Todavía no hay un escaneo publicado.</span>'; return; }
+  ({meta, stores, storeById, products, byModel} = d);
   const when = new Date(meta.actualizado);
   $("status").innerHTML = `<b>${products.length.toLocaleString("es-EC")}</b> productos en ${stores.filter(s=>!s.error).length} tiendas<br>Último escaneo: <b>${when.toLocaleString("es-EC",{day:"2-digit",month:"short",hour:"2-digit",minute:"2-digit"})}</b>`;
-  buildModels();
   aplicarHash();
   render();
   addEventListener("hashchange", () => { aplicarHash(); render(); });
